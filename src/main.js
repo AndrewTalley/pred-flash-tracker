@@ -6,6 +6,12 @@ let overlayWindow = null;
 let setupWindow = null;
 let isDragMode = false;
 
+const DEFAULT_HOTKEYS = {
+  toggleOverlay: 'F2',
+  dragResize: 'F3',
+  newGame: 'F4',
+};
+
 function isAlive(win) {
   return win && !win.isDestroyed();
 }
@@ -30,6 +36,11 @@ function saveSettings(data) {
   } catch {}
 }
 
+function getHotkeys() {
+  const settings = loadSettings();
+  return { ...DEFAULT_HOTKEYS, ...settings.hotkeys };
+}
+
 function saveOverlayBounds() {
   if (!isAlive(overlayWindow)) return;
   const [x, y] = overlayWindow.getPosition();
@@ -37,6 +48,34 @@ function saveOverlayBounds() {
   saveSettings({ overlay: { x, y, width, height } });
 }
 
+// ===== HOTKEY REGISTRATION =====
+function registerHotkeys() {
+  // Unregister all first
+  globalShortcut.unregisterAll();
+
+  const keys = getHotkeys();
+
+  globalShortcut.register(keys.toggleOverlay, () => {
+    if (!isAlive(overlayWindow)) return;
+    overlayWindow.isVisible() ? overlayWindow.hide() : overlayWindow.show();
+  });
+
+  globalShortcut.register(keys.dragResize, () => {
+    if (!isAlive(overlayWindow)) return;
+    isDragMode ? exitDragMode() : enterDragMode();
+  });
+
+  globalShortcut.register(keys.newGame, () => {
+    if (isAlive(overlayWindow)) overlayWindow.close();
+    if (isAlive(setupWindow)) {
+      setupWindow.show();
+    } else {
+      createSetupWindow();
+    }
+  });
+}
+
+// ===== WINDOWS =====
 function createSetupWindow() {
   setupWindow = new BrowserWindow({
     width: 900,
@@ -61,7 +100,6 @@ function createOverlayWindow() {
   const settings = loadSettings();
   const saved = settings.overlay;
 
-  // Use saved position/size, or defaults
   const winWidth = saved?.width || 460;
   const winHeight = saved?.height || 95;
   const winX = saved?.x ?? Math.round(screenW / 2 - 230);
@@ -94,13 +132,8 @@ function createOverlayWindow() {
 
   isDragMode = false;
   overlayWindow.on('closed', () => { overlayWindow = null; });
+  overlayWindow.on('close', () => { saveOverlayBounds(); });
 
-  // Save position when overlay is about to close
-  overlayWindow.on('close', () => {
-    saveOverlayBounds();
-  });
-
-  // Forward resize events to renderer for layout flip
   overlayWindow.on('resize', () => {
     if (!isAlive(overlayWindow)) return;
     const [w, h] = overlayWindow.getSize();
@@ -124,40 +157,36 @@ function exitDragMode() {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.setResizable(false);
   overlayWindow.webContents.send('drag-mode', false);
-  // Save position and size after user finishes repositioning
   saveOverlayBounds();
 }
 
+// ===== APP READY =====
 app.whenReady().then(() => {
   createSetupWindow();
-
-  globalShortcut.register('F2', () => {
-    if (!isAlive(overlayWindow)) return;
-    overlayWindow.isVisible() ? overlayWindow.hide() : overlayWindow.show();
-  });
-
-  globalShortcut.register('F3', () => {
-    if (!isAlive(overlayWindow)) return;
-    isDragMode ? exitDragMode() : enterDragMode();
-  });
-
-  globalShortcut.register('F4', () => {
-    if (isAlive(overlayWindow)) overlayWindow.close();
-    if (isAlive(setupWindow)) {
-      setupWindow.show();
-    } else {
-      createSetupWindow();
-    }
-  });
+  registerHotkeys();
 });
 
-// ===== MINIMIZE BUTTON (setup window) =====
+// ===== IPC: SETTINGS =====
+ipcMain.handle('get-hotkeys', () => {
+  return getHotkeys();
+});
+
+ipcMain.on('save-hotkeys', (event, hotkeys) => {
+  saveSettings({ hotkeys });
+  registerHotkeys();
+  // Notify setup window of updated keys
+  if (isAlive(setupWindow)) {
+    setupWindow.webContents.send('hotkeys-updated', getHotkeys());
+  }
+});
+
+// ===== IPC: MINIMIZE =====
 ipcMain.on('minimize-window', (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (win && !win.isDestroyed()) win.minimize();
 });
 
-// ===== HOVER CLICK-THROUGH =====
+// ===== IPC: HOVER CLICK-THROUGH =====
 ipcMain.on('set-clickable', () => {
   if (!isAlive(overlayWindow) || isDragMode) return;
   overlayWindow.setIgnoreMouseEvents(false);
@@ -168,7 +197,7 @@ ipcMain.on('set-click-through', () => {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
 });
 
-// ===== OVERLAY LIFECYCLE =====
+// ===== IPC: OVERLAY LIFECYCLE =====
 ipcMain.on('start-overlay', (event, heroes) => {
   if (isAlive(setupWindow)) setupWindow.hide();
   if (!isAlive(overlayWindow)) createOverlayWindow();
@@ -176,7 +205,6 @@ ipcMain.on('start-overlay', (event, heroes) => {
     if (!isAlive(overlayWindow)) return;
     overlayWindow.webContents.send('load-heroes', heroes);
     overlayWindow.webContents.send('drag-mode', false);
-    // Send initial size for layout calculation
     const [w, h] = overlayWindow.getSize();
     overlayWindow.webContents.send('window-resized', { width: w, height: h });
   });
@@ -192,20 +220,8 @@ ipcMain.on('reset-overlay', () => {
   }
 });
 
-// ===== CLOSE APP — fully kill the process =====
-ipcMain.on('close-app', () => {
-  app.quit();
-});
-
-app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
-});
-
-app.on('window-all-closed', () => {
-  app.quit();
-});
-
-// Force-kill if anything lingers
-app.on('quit', () => {
-  process.exit(0);
-});
+// ===== CLOSE =====
+ipcMain.on('close-app', () => { app.quit(); });
+app.on('will-quit', () => { globalShortcut.unregisterAll(); });
+app.on('window-all-closed', () => { app.quit(); });
+app.on('quit', () => { process.exit(0); });

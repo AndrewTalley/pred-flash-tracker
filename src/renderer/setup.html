@@ -306,6 +306,109 @@
     .role-ranger .hero-avatar { border-color: rgba(34, 197, 94, 0.4); }
     .role-support .hero-avatar { border-color: rgba(59, 130, 246, 0.4); }
     .role-frontline .hero-avatar { border-color: rgba(234, 179, 8, 0.4); }
+
+    /* ===== SETTINGS PANEL ===== */
+    .settings-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .settings-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .settings-toggle.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .settings-panel {
+      display: none;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .settings-panel.visible { display: block; }
+
+    .settings-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .keybind-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .keybind-row:last-child { margin-bottom: 0; }
+
+    .keybind-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .keybind-btn {
+      padding: 5px 16px;
+      min-width: 70px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .keybind-btn:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+    }
+
+    .keybind-btn.listening {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+      animation: pulse-bind 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-bind {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50% { box-shadow: 0 0 8px var(--accent-glow); }
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -320,7 +423,27 @@
   <div class="container">
     <div class="section-header">
       <h2>Select 5 Enemy Heroes</h2>
-      <span class="selected-count" id="selectedCount">0 / 5</span>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="selected-count" id="selectedCount">0 / 5</span>
+        <button class="settings-toggle" id="settingsToggle" title="Keybind settings">&#9881;</button>
+      </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-title">Hotkey Settings</div>
+      <div class="keybind-row">
+        <span class="keybind-label">Toggle Overlay</span>
+        <button class="keybind-btn" id="bind-toggleOverlay" data-action="toggleOverlay">F2</button>
+      </div>
+      <div class="keybind-row">
+        <span class="keybind-label">Drag &amp; Resize</span>
+        <button class="keybind-btn" id="bind-dragResize" data-action="dragResize">F3</button>
+      </div>
+      <div class="keybind-row">
+        <span class="keybind-label">New Game</span>
+        <button class="keybind-btn" id="bind-newGame" data-action="newGame">F4</button>
+      </div>
+      <div class="settings-hint">Click a key button, then press the new key to rebind.</div>
     </div>
 
     <div class="selected-heroes-bar" id="selectedBar">
@@ -342,8 +465,8 @@
     <div class="hero-grid" id="heroGrid"></div>
 
     <div class="bottom-bar">
-      <div class="hotkey-hint">
-        <kbd>F2</kbd> Toggle overlay &nbsp; <kbd>F3</kbd> Drag &amp; resize &nbsp; <kbd>F4</kbd> New game
+      <div class="hotkey-hint" id="hotkeyHint">
+        <kbd id="hint-toggleOverlay">F2</kbd> Toggle overlay &nbsp; <kbd id="hint-dragResize">F3</kbd> Drag &amp; resize &nbsp; <kbd id="hint-newGame">F4</kbd> New game
       </div>
       <button class="start-btn" id="startBtn" disabled>Start Tracking</button>
     </div>
@@ -458,6 +581,107 @@
     });
 
     renderGrid();
+
+    // ===== SETTINGS PANEL =====
+    const settingsToggle = document.getElementById('settingsToggle');
+    const settingsPanel = document.getElementById('settingsPanel');
+    let listeningBtn = null;
+
+    settingsToggle.addEventListener('click', () => {
+      settingsPanel.classList.toggle('visible');
+      settingsToggle.classList.toggle('active');
+      cancelListening();
+    });
+
+    function updateHotkeyDisplay(hotkeys) {
+      document.getElementById('bind-toggleOverlay').textContent = hotkeys.toggleOverlay;
+      document.getElementById('bind-dragResize').textContent = hotkeys.dragResize;
+      document.getElementById('bind-newGame').textContent = hotkeys.newGame;
+      document.getElementById('hint-toggleOverlay').textContent = hotkeys.toggleOverlay;
+      document.getElementById('hint-dragResize').textContent = hotkeys.dragResize;
+      document.getElementById('hint-newGame').textContent = hotkeys.newGame;
+    }
+
+    // Load current hotkeys on startup
+    ipcRenderer.invoke('get-hotkeys').then(hotkeys => {
+      updateHotkeyDisplay(hotkeys);
+    });
+
+    // Update display when hotkeys change
+    ipcRenderer.on('hotkeys-updated', (event, hotkeys) => {
+      updateHotkeyDisplay(hotkeys);
+    });
+
+    function cancelListening() {
+      if (listeningBtn) {
+        listeningBtn.classList.remove('listening');
+        listeningBtn = null;
+      }
+    }
+
+    // Click a keybind button to start listening
+    document.querySelectorAll('.keybind-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        cancelListening();
+        listeningBtn = btn;
+        btn.classList.add('listening');
+        btn.textContent = '...';
+      });
+    });
+
+    // Capture the key press
+    document.addEventListener('keydown', (e) => {
+      if (!listeningBtn) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Build the key string Electron expects
+      let key = e.key;
+
+      // Normalize common keys
+      if (key === ' ') key = 'Space';
+      if (key === 'Escape') {
+        // Escape cancels the rebind
+        cancelListening();
+        ipcRenderer.invoke('get-hotkeys').then(updateHotkeyDisplay);
+        return;
+      }
+
+      // For F-keys, use as-is (F1, F2, etc.)
+      // For letters/numbers, capitalize
+      if (key.length === 1) key = key.toUpperCase();
+
+      // Build modifier string
+      const parts = [];
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey && key !== 'Shift') parts.push('Shift');
+
+      // Don't allow bare modifier keys as hotkeys
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(key)) return;
+
+      parts.push(key);
+      const combo = parts.join('+');
+
+      const action = listeningBtn.dataset.action;
+      listeningBtn.textContent = combo;
+      listeningBtn.classList.remove('listening');
+      listeningBtn = null;
+
+      // Get current hotkeys, update the changed one, save all
+      ipcRenderer.invoke('get-hotkeys').then(current => {
+        current[action] = combo;
+        ipcRenderer.send('save-hotkeys', current);
+      });
+    });
+
+    // Cancel listening if clicking elsewhere
+    document.addEventListener('click', (e) => {
+      if (listeningBtn && !e.target.classList.contains('keybind-btn')) {
+        cancelListening();
+        ipcRenderer.invoke('get-hotkeys').then(updateHotkeyDisplay);
+      }
+    });
   </script>
 </body>
 </html>
