@@ -8,6 +8,14 @@ A lightweight desktop overlay for **Predecessor** that tracks enemy flash (blink
 
 ---
 
+## Screenshots
+
+### Hero Select
+![Hero Select Screen](screenshots/setup.png)
+
+### In-Game Overlay
+![In-Game Overlay](screenshots/overlay.png)
+
 ## How It Works
 
 The app creates a **borderless, transparent, always-on-top window** that sits above your game. It does NOT hook into the game process, read memory, or interact with Predecessor in any way. It's the same approach used by Discord overlay, OBS, and similar tools.
