@@ -11,6 +11,9 @@ A lightweight desktop overlay for **Predecessor** that tracks enemy flash (blink
 ### Hero Select
 ![Hero Select Screen](screenshots/setup.png)
 
+### Settings
+<img src="screenshots/hotkeys.png" width="500">
+
 ### In-Game Overlay
 <img src="screenshots/overlay.png" width="500">
 
