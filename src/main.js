@@ -3,7 +3,11 @@ const path = require('path');
 
 let overlayWindow = null;
 let setupWindow = null;
-let isClickThrough = true;
+let isDragMode = false;
+
+function isAlive(win) {
+  return win && !win.isDestroyed();
+}
 
 function createSetupWindow() {
   setupWindow = new BrowserWindow({
@@ -21,22 +25,26 @@ function createSetupWindow() {
 
   setupWindow.loadFile(path.join(__dirname, 'renderer/setup.html'));
   setupWindow.setAlwaysOnTop(false);
+  setupWindow.on('closed', () => { setupWindow = null; });
 }
 
 function createOverlayWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const { width } = screen.getPrimaryDisplay().workAreaSize;
 
   overlayWindow = new BrowserWindow({
-    width: 560,
-    height: 110,
-    x: Math.round(width / 2 - 280),
+    width: 460,
+    height: 95,
+    x: Math.round(width / 2 - 230),
     y: 10,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
-    focusable: false,
+    focusable: true,
+    hasShadow: false,
+    minWidth: 120,
+    minHeight: 80,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -44,95 +52,104 @@ function createOverlayWindow() {
   });
 
   overlayWindow.loadFile(path.join(__dirname, 'renderer/overlay.html'));
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.setAlwaysOnTop(true, 'screen-saver');
   overlayWindow.setVisibleOnAllWorkspaces(true);
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
 
-  isClickThrough = true;
+  isDragMode = false;
+  overlayWindow.on('closed', () => { overlayWindow = null; });
+
+  // Forward resize events to renderer for layout flip
+  overlayWindow.on('resize', () => {
+    if (!isAlive(overlayWindow)) return;
+    const [w, h] = overlayWindow.getSize();
+    overlayWindow.webContents.send('window-resized', { width: w, height: h });
+  });
+}
+
+function enterDragMode() {
+  if (!isAlive(overlayWindow)) return;
+  isDragMode = true;
+  overlayWindow.setIgnoreMouseEvents(false);
+  overlayWindow.setResizable(true);
+  overlayWindow.setFocusable(true);
+  overlayWindow.focus();
+  overlayWindow.webContents.send('drag-mode', true);
+}
+
+function exitDragMode() {
+  if (!isAlive(overlayWindow)) return;
+  isDragMode = false;
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+  overlayWindow.setResizable(false);
+  overlayWindow.webContents.send('drag-mode', false);
 }
 
 app.whenReady().then(() => {
   createSetupWindow();
 
-  // Toggle overlay visibility
   globalShortcut.register('F2', () => {
-    if (overlayWindow) {
-      if (overlayWindow.isVisible()) {
-        overlayWindow.hide();
-      } else {
-        overlayWindow.show();
-      }
-    }
+    if (!isAlive(overlayWindow)) return;
+    overlayWindow.isVisible() ? overlayWindow.hide() : overlayWindow.show();
   });
 
-  // Reset — close overlay and go back to hero select
+  globalShortcut.register('F3', () => {
+    if (!isAlive(overlayWindow)) return;
+    isDragMode ? exitDragMode() : enterDragMode();
+  });
+
   globalShortcut.register('F4', () => {
-    if (overlayWindow) {
-      overlayWindow.close();
-      overlayWindow = null;
-    }
-    if (setupWindow) {
+    if (isAlive(overlayWindow)) overlayWindow.close();
+    if (isAlive(setupWindow)) {
       setupWindow.show();
     } else {
       createSetupWindow();
     }
   });
-
-  // Toggle click-through (so you can interact with the overlay)
-  globalShortcut.register('F3', () => {
-    if (overlayWindow) {
-      isClickThrough = !isClickThrough;
-      if (isClickThrough) {
-        overlayWindow.setIgnoreMouseEvents(true, { forward: true });
-        overlayWindow.setFocusable(false);
-        overlayWindow.webContents.send('click-through-state', true);
-      } else {
-        overlayWindow.setIgnoreMouseEvents(false);
-        overlayWindow.setFocusable(true);
-        overlayWindow.focus();
-        overlayWindow.webContents.send('click-through-state', false);
-      }
-    }
-  });
 });
 
-// Receive hero selection from setup and open overlay
+// ===== MINIMIZE BUTTON (setup window) =====
+ipcMain.on('minimize-window', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) win.minimize();
+});
+
+// ===== HOVER CLICK-THROUGH =====
+ipcMain.on('set-clickable', () => {
+  if (!isAlive(overlayWindow) || isDragMode) return;
+  overlayWindow.setIgnoreMouseEvents(false);
+});
+
+ipcMain.on('set-click-through', () => {
+  if (!isAlive(overlayWindow) || isDragMode) return;
+  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
+});
+
+// ===== OVERLAY LIFECYCLE =====
 ipcMain.on('start-overlay', (event, heroes) => {
-  if (setupWindow) {
-    setupWindow.hide();
-  }
-  if (!overlayWindow) {
-    createOverlayWindow();
-  }
-  // Wait for overlay to load then send hero data
+  if (isAlive(setupWindow)) setupWindow.hide();
+  if (!isAlive(overlayWindow)) createOverlayWindow();
   overlayWindow.webContents.once('did-finish-load', () => {
+    if (!isAlive(overlayWindow)) return;
     overlayWindow.webContents.send('load-heroes', heroes);
-    overlayWindow.webContents.send('click-through-state', isClickThrough);
+    overlayWindow.webContents.send('drag-mode', false);
+    // Send initial size for layout calculation
+    const [w, h] = overlayWindow.getSize();
+    overlayWindow.webContents.send('window-resized', { width: w, height: h });
   });
   overlayWindow.show();
 });
 
-// Reset - go back to setup
 ipcMain.on('reset-overlay', () => {
-  if (overlayWindow) {
-    overlayWindow.close();
-    overlayWindow = null;
-  }
-  if (setupWindow) {
+  if (isAlive(overlayWindow)) overlayWindow.close();
+  if (isAlive(setupWindow)) {
     setupWindow.show();
   } else {
     createSetupWindow();
   }
 });
 
-// Move overlay window (drag from renderer)
-ipcMain.on('overlay-drag', (event, { deltaX, deltaY }) => {
-  if (overlayWindow) {
-    const [x, y] = overlayWindow.getPosition();
-    overlayWindow.setPosition(x + deltaX, y + deltaY);
-  }
-});
-
+// ===== CLOSE APP — fully kill the process =====
 ipcMain.on('close-app', () => {
   app.quit();
 });
@@ -142,7 +159,10 @@ app.on('will-quit', () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
+});
+
+// Force-kill if anything lingers
+app.on('quit', () => {
+  process.exit(0);
 });

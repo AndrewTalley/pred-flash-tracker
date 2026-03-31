@@ -9,85 +9,137 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: rgba(8, 9, 14, 0.85);
+      --bg: rgba(8, 9, 14, 0.82);
       --bg-slot: rgba(18, 20, 30, 0.9);
       --accent: #00e5ff;
-      --accent-glow: rgba(0, 229, 255, 0.4);
+      --accent-glow: rgba(0, 229, 255, 0.35);
       --danger: #ff3d5a;
-      --danger-glow: rgba(255, 61, 90, 0.4);
       --warning: #ffbd2e;
       --warning-glow: rgba(255, 189, 46, 0.4);
       --ready: #00e676;
-      --ready-glow: rgba(0, 230, 118, 0.4);
-      --text: #e8eaf0;
       --text-dim: #7a7f96;
       --border: rgba(42, 45, 62, 0.6);
     }
 
-    body {
+    html, body {
       background: transparent;
       overflow: hidden;
       font-family: 'Rajdhani', sans-serif;
       user-select: none;
+      width: 100%;
+      height: 100%;
     }
 
-    .overlay-container {
+    .overlay {
       display: flex;
-      gap: 6px;
-      padding: 6px;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 5px;
       background: var(--bg);
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      align-content: flex-start;
+      justify-content: center;
     }
 
-    .overlay-container.interactive {
+    .overlay.drag-mode {
       border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
+      box-shadow: 0 0 10px var(--accent-glow);
+      cursor: grab;
+      -webkit-app-region: drag;
+    }
+
+    .overlay.drag-mode:active {
+      cursor: grabbing;
+    }
+
+    /* Horizontal (default) */
+    .overlay.layout-horizontal {
+      flex-direction: row;
+    }
+
+    .overlay.layout-horizontal .hero-slot {
+      flex-direction: column;
+      width: 80px;
+    }
+
+    /* Vertical — when window is narrow */
+    .overlay.layout-vertical {
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+    }
+
+    .overlay.layout-vertical .hero-slot {
+      flex-direction: row;
+      width: 100%;
+      gap: 8px;
+    }
+
+    .overlay.layout-vertical .hero-slot .avatar-wrap {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .overlay.layout-vertical .slot-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .overlay.layout-vertical .hero-name-label {
+      text-align: left;
     }
 
     .hero-slot {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 96px;
-      padding: 6px;
+      padding: 4px 6px;
       border-radius: 8px;
-      background: var(--bg-slot);
+      background: transparent;
       border: 1px solid transparent;
-      cursor: default;
-      transition: all 0.2s;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
       position: relative;
+      -webkit-app-region: no-drag;
     }
 
-    .overlay-container.interactive .hero-slot { cursor: pointer; }
-
-    .overlay-container.interactive .hero-slot:hover {
-      background: rgba(30, 33, 48, 0.95);
+    .hero-slot:hover {
+      background: var(--bg-slot);
       border-color: var(--border);
     }
 
     .avatar-wrap {
       position: relative;
-      width: 48px;
-      height: 48px;
-      margin-bottom: 4px;
+      width: 42px;
+      height: 42px;
+      margin-bottom: 2px;
     }
 
     .avatar {
-      width: 48px;
-      height: 48px;
+      width: 42px;
+      height: 42px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-family: 'Orbitron', sans-serif;
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
       position: relative;
       z-index: 1;
       overflow: hidden;
+      border: 2px solid var(--border);
+      background: var(--bg-slot);
+      transition: border-color 0.2s, box-shadow 0.3s;
     }
 
     .avatar img {
@@ -102,57 +154,65 @@
       position: absolute;
       top: -3px;
       left: -3px;
-      width: 54px;
-      height: 54px;
+      width: 48px;
+      height: 48px;
       transform: rotate(-90deg);
     }
 
-    .timer-ring circle { fill: none; stroke-width: 3; }
-    .timer-ring .ring-bg { stroke: rgba(42, 45, 62, 0.5); }
+    .timer-ring circle { fill: none; stroke-width: 2.5; }
+    .timer-ring .ring-bg { stroke: rgba(42, 45, 62, 0.4); }
 
     .timer-ring .ring-progress {
-      stroke: var(--accent);
       stroke-linecap: round;
       transition: stroke-dashoffset 1s linear, stroke 0.3s;
     }
 
-    /* States */
-    .hero-slot.ready .avatar {
-      background: rgba(0, 230, 118, 0.1);
-      border: 2px solid var(--ready);
-      color: var(--ready);
-    }
-    .hero-slot.ready .ring-progress { stroke: var(--ready); }
+    .hero-slot.idle .avatar { border-color: rgba(120, 130, 160, 0.3); }
+    .hero-slot.idle .ring-progress { stroke: transparent; }
+    .hero-slot.idle .timer-label { display: none; }
 
     .hero-slot.on-cooldown .avatar {
-      background: rgba(255, 61, 90, 0.15);
-      border: 2px solid var(--danger);
+      border-color: var(--danger);
+      background: rgba(255, 61, 90, 0.1);
       color: var(--danger);
     }
     .hero-slot.on-cooldown .ring-progress { stroke: var(--danger); }
-
-    /* Desaturate the portrait when on cooldown */
     .hero-slot.on-cooldown .avatar img {
-      filter: grayscale(70%) brightness(0.6);
+      filter: grayscale(70%) brightness(0.55);
       transition: filter 0.3s;
+    }
+    .hero-slot.on-cooldown .timer-label {
+      display: block;
+      color: var(--danger);
     }
 
     .hero-slot.almost-ready .avatar {
-      background: rgba(255, 189, 46, 0.15);
-      border: 2px solid var(--warning);
+      border-color: var(--warning);
+      background: rgba(255, 189, 46, 0.1);
       color: var(--warning);
     }
     .hero-slot.almost-ready .ring-progress { stroke: var(--warning); }
-
     .hero-slot.almost-ready .avatar img {
-      filter: grayscale(30%) brightness(0.8);
+      filter: grayscale(30%) brightness(0.75);
       transition: filter 0.3s;
+    }
+    .hero-slot.almost-ready .timer-label {
+      display: block;
+      color: var(--warning);
     }
 
-    .hero-slot.ready .avatar img {
-      filter: none;
-      transition: filter 0.3s;
+    @keyframes pulse-warning {
+      0%, 100% { box-shadow: 0 0 0 0 transparent; }
+      50% { box-shadow: 0 0 8px var(--warning-glow); }
     }
+    .hero-slot.almost-ready { animation: pulse-warning 2s ease-in-out infinite; }
+
+    .hero-slot.just-ready .avatar {
+      border-color: var(--ready);
+      box-shadow: 0 0 10px rgba(0, 230, 118, 0.4);
+    }
+    .hero-slot.just-ready .ring-progress { stroke: var(--ready); }
+    .hero-slot.just-ready .timer-label { display: none; }
 
     .hero-name-label {
       font-size: 10px;
@@ -160,161 +220,25 @@
       color: var(--text-dim);
       text-align: center;
       line-height: 1.1;
-      max-width: 88px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      max-width: 72px;
     }
 
     .timer-label {
       font-family: 'Orbitron', sans-serif;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
-      margin-top: 1px;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
+      display: none;
     }
 
-    .hero-slot.ready .timer-label { color: var(--ready); }
-    .hero-slot.on-cooldown .timer-label { color: var(--danger); }
-    .hero-slot.almost-ready .timer-label { color: var(--warning); }
-
-    .status-text {
-      font-size: 9px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-    }
-
-    .hero-slot.ready .status-text { color: var(--ready); }
-
-    @keyframes pulse-warning {
-      0%, 100% { box-shadow: 0 0 0 0 transparent; }
-      50% { box-shadow: 0 0 12px var(--warning-glow); }
-    }
-
-    .hero-slot.almost-ready { animation: pulse-warning 2s ease-in-out infinite; }
-
-    .mode-indicator {
-      position: absolute;
-      top: -18px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 9px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--accent);
-      white-space: nowrap;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-
-    .overlay-container.interactive .mode-indicator { opacity: 1; }
-
-    .reset-hint {
-      font-size: 8px;
-      color: var(--text-dim);
-      position: absolute;
-      bottom: -2px;
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .overlay-container.interactive .hero-slot.on-cooldown:hover .reset-hint,
-    .overlay-container.interactive .hero-slot.almost-ready:hover .reset-hint {
-      opacity: 1;
-    }
-
-    .reset-btn-slot {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 32px;
-      min-width: 32px;
-      border-radius: 8px;
-      background: var(--bg-slot);
-      border: 1px solid transparent;
-      cursor: default;
-      transition: all 0.2s;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .overlay-container.interactive .reset-btn-slot {
-      opacity: 1;
-      pointer-events: auto;
-      cursor: pointer;
-    }
-
-    .overlay-container.interactive .reset-btn-slot:hover {
-      background: rgba(255, 61, 90, 0.15);
-      border-color: var(--danger);
-    }
-
-    .reset-icon {
-      font-size: 16px;
-      color: var(--text-dim);
-      line-height: 1;
-    }
-
-    .overlay-container.interactive .reset-btn-slot:hover .reset-icon {
-      color: var(--danger);
-    }
-
-    .drag-handle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      min-width: 20px;
-      border-radius: 8px;
-      background: var(--bg-slot);
-      border: 1px solid transparent;
-      cursor: default;
-      transition: all 0.2s;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .overlay-container.interactive .drag-handle {
-      opacity: 1;
-      pointer-events: auto;
-      cursor: grab;
-    }
-
-    .overlay-container.interactive .drag-handle:active {
-      cursor: grabbing;
-    }
-
-    .overlay-container.interactive .drag-handle:hover {
-      background: rgba(0, 229, 255, 0.1);
-      border-color: rgba(0, 229, 255, 0.3);
-    }
-
-    .drag-dots {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-      align-items: center;
-    }
-
-    .drag-dots span {
-      display: block;
-      width: 4px;
-      height: 4px;
-      border-radius: 50%;
-      background: var(--text-dim);
-    }
-
-    .overlay-container.interactive .drag-handle:hover .drag-dots span {
-      background: var(--accent);
-    }
   </style>
 </head>
 <body>
-  <div class="mode-indicator" id="modeIndicator">F3 — Click Mode  |  F4 — New Game</div>
-  <div class="overlay-container" id="overlay"></div>
+  <div class="overlay" id="overlay"></div>
+
 
   <script>
     const { ipcRenderer } = require('electron');
@@ -323,19 +247,19 @@
 
     const FLASH_COOLDOWN = 300;
     const ALMOST_READY_THRESHOLD = 30;
+    const JUST_READY_DURATION = 3000;
 
     let heroes = [];
     let timers = {};
+    let inDragMode = false;
 
     const overlay = document.getElementById('overlay');
-    const circumference = 2 * Math.PI * 24;
-
+    const circumference = 2 * Math.PI * 21;
     const ASSETS_DIR = path.join(__dirname, '..', 'assets', 'heroes');
 
     function heroImageExists(hero) {
-      try {
-        return fs.existsSync(path.join(ASSETS_DIR, hero.img));
-      } catch { return false; }
+      try { return fs.existsSync(path.join(ASSETS_DIR, hero.img)); }
+      catch { return false; }
     }
 
     function heroImageSrc(hero) {
@@ -349,95 +273,83 @@
       return hero.initials;
     }
 
-    function formatTime(seconds) {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${m}:${s.toString().padStart(2, '0')}`;
+    function formatTime(s) {
+      return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
     }
 
     function safeId(name) {
       return name.replace(/[^a-zA-Z0-9]/g, '_');
     }
 
+    // ===== HOVER CLICK-THROUGH =====
+    // Hero slots tell main process to accept clicks when hovered.
+    // This means you just hover a hero and click — no F3 needed.
+    function setupHoverClickThrough(slot) {
+      slot.addEventListener('mouseenter', () => {
+        if (inDragMode) return;
+        ipcRenderer.send('set-clickable');
+      });
+      slot.addEventListener('mouseleave', () => {
+        if (inDragMode) return;
+        ipcRenderer.send('set-click-through');
+      });
+    }
+
+    // ===== RENDER =====
     function renderSlots() {
-      overlay.innerHTML = heroes.map(hero => `
-        <div class="hero-slot ready" id="slot-${safeId(hero.name)}" data-hero="${hero.name}">
+      overlay.innerHTML = '';
+
+      heroes.forEach(hero => {
+        const slot = document.createElement('div');
+        slot.className = 'hero-slot idle';
+        slot.id = `slot-${safeId(hero.name)}`;
+        slot.dataset.hero = hero.name;
+        slot.innerHTML = `
           <div class="avatar-wrap">
-            <svg class="timer-ring" viewBox="0 0 54 54">
-              <circle class="ring-bg" cx="27" cy="27" r="24" />
-              <circle class="ring-progress" cx="27" cy="27" r="24"
+            <svg class="timer-ring" viewBox="0 0 48 48">
+              <circle class="ring-bg" cx="24" cy="24" r="21" />
+              <circle class="ring-progress" cx="24" cy="24" r="21"
                 stroke-dasharray="${circumference}"
                 stroke-dashoffset="0" />
             </svg>
             <div class="avatar">${avatarContent(hero)}</div>
           </div>
-          <div class="hero-name-label">${hero.name}</div>
-          <div class="timer-label">READY</div>
-          <span class="reset-hint">right-click: cancel</span>
-        </div>
-      `).join('') + `
-        <div class="reset-btn-slot" id="resetBtn" title="New game — back to hero select (F4)">
-          <span class="reset-icon">&#x21BB;</span>
-        </div>
-      `;
+          <div class="slot-info">
+            <div class="hero-name-label">${hero.name}</div>
+            <div class="timer-label"></div>
+          </div>
+        `;
 
-      // Prepend drag handle
-      overlay.insertAdjacentHTML('afterbegin', `
-        <div class="drag-handle" id="dragHandle" title="Drag to reposition">
-          <div class="drag-dots"><span></span><span></span><span></span></div>
-        </div>
-      `);
-
-      document.querySelectorAll('.hero-slot').forEach(slot => {
-        slot.addEventListener('click', () => startTimer(slot.dataset.hero));
+        slot.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startTimer(hero.name);
+        });
         slot.addEventListener('contextmenu', (e) => {
           e.preventDefault();
-          cancelTimer(slot.dataset.hero);
+          e.stopPropagation();
+          cancelTimer(hero.name);
         });
-      });
 
-      document.getElementById('resetBtn').addEventListener('click', () => {
-        ipcRenderer.send('reset-overlay');
-      });
-
-      // Drag-to-move logic
-      const dragHandle = document.getElementById('dragHandle');
-      let isDragging = false;
-      let lastX = 0, lastY = 0;
-
-      dragHandle.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastX = e.screenX;
-        lastY = e.screenY;
-        e.preventDefault();
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const deltaX = e.screenX - lastX;
-        const deltaY = e.screenY - lastY;
-        lastX = e.screenX;
-        lastY = e.screenY;
-        ipcRenderer.send('overlay-drag', { deltaX, deltaY });
-      });
-
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
+        setupHoverClickThrough(slot);
+        overlay.appendChild(slot);
       });
     }
 
-    function getSlotEl(heroName) {
-      return document.getElementById(`slot-${safeId(heroName)}`);
+    // Reset via F4 only (handled in main process)
+
+    // ===== TIMERS =====
+    function getSlotEl(name) {
+      return document.getElementById(`slot-${safeId(name)}`);
     }
 
     function startTimer(heroName) {
       if (timers[heroName]) return;
-
       const slot = getSlotEl(heroName);
       if (!slot) return;
 
       const endTime = Date.now() + (FLASH_COOLDOWN * 1000);
       const ringProgress = slot.querySelector('.ring-progress');
+      const timerLabel = slot.querySelector('.timer-label');
 
       timers[heroName] = {
         endTime,
@@ -447,54 +359,76 @@
           if (remaining <= 0) {
             clearInterval(timers[heroName].intervalId);
             delete timers[heroName];
-            slot.className = 'hero-slot ready';
-            slot.querySelector('.timer-label').textContent = 'READY';
+            slot.className = 'hero-slot just-ready';
+            timerLabel.textContent = '';
             ringProgress.style.strokeDashoffset = '0';
+            setTimeout(() => {
+              if (!timers[heroName]) slot.className = 'hero-slot idle';
+            }, JUST_READY_DURATION);
             return;
           }
 
-          slot.querySelector('.timer-label').textContent = formatTime(remaining);
-
+          timerLabel.textContent = formatTime(remaining);
           const fraction = remaining / FLASH_COOLDOWN;
           ringProgress.style.strokeDashoffset = `${circumference * (1 - fraction)}`;
-
-          if (remaining <= ALMOST_READY_THRESHOLD) {
-            slot.className = 'hero-slot almost-ready';
-          } else {
-            slot.className = 'hero-slot on-cooldown';
-          }
+          slot.className = remaining <= ALMOST_READY_THRESHOLD
+            ? 'hero-slot almost-ready'
+            : 'hero-slot on-cooldown';
         }, 250),
       };
 
       slot.className = 'hero-slot on-cooldown';
-      slot.querySelector('.timer-label').textContent = formatTime(FLASH_COOLDOWN);
+      timerLabel.textContent = formatTime(FLASH_COOLDOWN);
     }
 
     function cancelTimer(heroName) {
       if (!timers[heroName]) return;
-
       clearInterval(timers[heroName].intervalId);
       delete timers[heroName];
-
       const slot = getSlotEl(heroName);
       if (!slot) return;
-
-      slot.className = 'hero-slot ready';
-      slot.querySelector('.timer-label').textContent = 'READY';
+      slot.className = 'hero-slot idle';
+      slot.querySelector('.timer-label').textContent = '';
       slot.querySelector('.ring-progress').style.strokeDashoffset = '0';
     }
 
+    // ===== IPC =====
     ipcRenderer.on('load-heroes', (event, heroData) => {
       heroes = heroData;
       renderSlots();
     });
 
-    ipcRenderer.on('click-through-state', (event, isClickThrough) => {
-      if (isClickThrough) {
-        overlay.classList.remove('interactive');
+    ipcRenderer.on('drag-mode', (event, active) => {
+      inDragMode = active;
+      if (active) {
+        overlay.classList.add('drag-mode');
       } else {
-        overlay.classList.add('interactive');
+        overlay.classList.remove('drag-mode');
       }
+      // Force Chromium to recalculate -webkit-app-region
+      document.body.style.display = 'none';
+      void document.body.offsetHeight;
+      document.body.style.display = '';
+    });
+
+    // Layout flip — vertical when narrow, horizontal when wide
+    const VERTICAL_THRESHOLD = 350;
+    let currentLayout = 'horizontal';
+
+    function updateLayout(windowWidth) {
+      const newLayout = windowWidth < VERTICAL_THRESHOLD ? 'vertical' : 'horizontal';
+      if (newLayout !== currentLayout) {
+        currentLayout = newLayout;
+        overlay.classList.remove('layout-horizontal', 'layout-vertical');
+        overlay.classList.add(`layout-${newLayout}`);
+      }
+    }
+
+    // Set initial layout
+    overlay.classList.add('layout-horizontal');
+
+    ipcRenderer.on('window-resized', (event, { width }) => {
+      updateLayout(width);
     });
   </script>
 </body>
