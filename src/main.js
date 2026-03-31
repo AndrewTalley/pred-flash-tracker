@@ -27,9 +27,9 @@ function createOverlayWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
 
   overlayWindow = new BrowserWindow({
-    width: 520,
-    height: 100,
-    x: Math.round(width / 2 - 260),
+    width: 560,
+    height: 110,
+    x: Math.round(width / 2 - 280),
     y: 10,
     frame: false,
     transparent: true,
@@ -122,6 +122,14 @@ ipcMain.on('reset-overlay', () => {
     setupWindow.show();
   } else {
     createSetupWindow();
+  }
+});
+
+// Move overlay window (drag from renderer)
+ipcMain.on('overlay-drag', (event, { deltaX, deltaY }) => {
+  if (overlayWindow) {
+    const [x, y] = overlayWindow.getPosition();
+    overlayWindow.setPosition(x + deltaX, y + deltaY);
   }
 });
 

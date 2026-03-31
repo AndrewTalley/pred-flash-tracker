@@ -2,6 +2,7 @@
   "name": "predecessor-flash-tracker",
   "version": "1.0.0",
   "description": "Overlay app to track enemy flash cooldowns in Predecessor",
+  "author": "Andre",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
@@ -13,6 +14,7 @@
   "build": {
     "appId": "com.predtracker.flashtracker",
     "productName": "Pred Flash Tracker",
+    "forceCodeSigning": false,
     "directories": {
       "output": "dist"
     },
@@ -22,7 +24,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": false
     },
     "mac": {
       "target": "dmg",

@@ -261,6 +261,55 @@
     .overlay-container.interactive .reset-btn-slot:hover .reset-icon {
       color: var(--danger);
     }
+
+    .drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      min-width: 20px;
+      border-radius: 8px;
+      background: var(--bg-slot);
+      border: 1px solid transparent;
+      cursor: default;
+      transition: all 0.2s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .overlay-container.interactive .drag-handle {
+      opacity: 1;
+      pointer-events: auto;
+      cursor: grab;
+    }
+
+    .overlay-container.interactive .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .overlay-container.interactive .drag-handle:hover {
+      background: rgba(0, 229, 255, 0.1);
+      border-color: rgba(0, 229, 255, 0.3);
+    }
+
+    .drag-dots {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .drag-dots span {
+      display: block;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-dim);
+    }
+
+    .overlay-container.interactive .drag-handle:hover .drag-dots span {
+      background: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -332,6 +381,13 @@
         </div>
       `;
 
+      // Prepend drag handle
+      overlay.insertAdjacentHTML('afterbegin', `
+        <div class="drag-handle" id="dragHandle" title="Drag to reposition">
+          <div class="drag-dots"><span></span><span></span><span></span></div>
+        </div>
+      `);
+
       document.querySelectorAll('.hero-slot').forEach(slot => {
         slot.addEventListener('click', () => startTimer(slot.dataset.hero));
         slot.addEventListener('contextmenu', (e) => {
@@ -342,6 +398,31 @@
 
       document.getElementById('resetBtn').addEventListener('click', () => {
         ipcRenderer.send('reset-overlay');
+      });
+
+      // Drag-to-move logic
+      const dragHandle = document.getElementById('dragHandle');
+      let isDragging = false;
+      let lastX = 0, lastY = 0;
+
+      dragHandle.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastX = e.screenX;
+        lastY = e.screenY;
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const deltaX = e.screenX - lastX;
+        const deltaY = e.screenY - lastY;
+        lastX = e.screenX;
+        lastY = e.screenY;
+        ipcRenderer.send('overlay-drag', { deltaX, deltaY });
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
       });
     }
 
