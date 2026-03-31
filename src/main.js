@@ -1,5 +1,6 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 let overlayWindow = null;
 let setupWindow = null;
@@ -7,6 +8,33 @@ let isDragMode = false;
 
 function isAlive(win) {
   return win && !win.isDestroyed();
+}
+
+// ===== SETTINGS PERSISTENCE =====
+const settingsPath = path.join(app.getPath('userData'), 'overlay-settings.json');
+
+function loadSettings() {
+  try {
+    if (fs.existsSync(settingsPath)) {
+      return JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+function saveSettings(data) {
+  try {
+    const existing = loadSettings();
+    const merged = { ...existing, ...data };
+    fs.writeFileSync(settingsPath, JSON.stringify(merged, null, 2));
+  } catch {}
+}
+
+function saveOverlayBounds() {
+  if (!isAlive(overlayWindow)) return;
+  const [x, y] = overlayWindow.getPosition();
+  const [width, height] = overlayWindow.getSize();
+  saveSettings({ overlay: { x, y, width, height } });
 }
 
 function createSetupWindow() {
@@ -29,13 +57,21 @@ function createSetupWindow() {
 }
 
 function createOverlayWindow() {
-  const { width } = screen.getPrimaryDisplay().workAreaSize;
+  const { width: screenW } = screen.getPrimaryDisplay().workAreaSize;
+  const settings = loadSettings();
+  const saved = settings.overlay;
+
+  // Use saved position/size, or defaults
+  const winWidth = saved?.width || 460;
+  const winHeight = saved?.height || 95;
+  const winX = saved?.x ?? Math.round(screenW / 2 - 230);
+  const winY = saved?.y ?? 10;
 
   overlayWindow = new BrowserWindow({
-    width: 460,
-    height: 95,
-    x: Math.round(width / 2 - 230),
-    y: 10,
+    width: winWidth,
+    height: winHeight,
+    x: winX,
+    y: winY,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -58,6 +94,11 @@ function createOverlayWindow() {
 
   isDragMode = false;
   overlayWindow.on('closed', () => { overlayWindow = null; });
+
+  // Save position when overlay is about to close
+  overlayWindow.on('close', () => {
+    saveOverlayBounds();
+  });
 
   // Forward resize events to renderer for layout flip
   overlayWindow.on('resize', () => {
@@ -83,6 +124,8 @@ function exitDragMode() {
   overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.setResizable(false);
   overlayWindow.webContents.send('drag-mode', false);
+  // Save position and size after user finishes repositioning
+  saveOverlayBounds();
 }
 
 app.whenReady().then(() => {

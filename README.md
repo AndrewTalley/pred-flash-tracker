@@ -113,4 +113,4 @@ const FLASH_COOLDOWN = 300; // seconds (5 minutes)
 
 ## License
 
-MIT — use it, modify it, share it. Happy hunting!
+MIT — use it, modify it, share it. Happy hunting on Omeda!
